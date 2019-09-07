@@ -8,6 +8,11 @@ import com.mongodb.client.MongoDatabase;
 
 public class Database {
 	
+	/*
+	 * Run Mongodb
+	 * sudo service mongod start
+	 */
+	
 	private static Database databaseInstance = null;
 	
 	private MongoClient mongoClient;
@@ -22,7 +27,7 @@ public class Database {
 		createTables();
 	}
 	
-	public static Database Database() {
+	public static Database getInstance() {
 		if (databaseInstance == null) {
 			databaseInstance = new Database();
 		}
@@ -30,7 +35,13 @@ public class Database {
 	}
 
 	private void createTables() {
+//		urls = database.getCollection("urls");
+//		urls.drop();
 		urls = database.getCollection("urls");
+	}
+
+	public MongoCollection<Document> getUrls() {
+		return urls;
 	}
 
 }
