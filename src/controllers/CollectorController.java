@@ -31,8 +31,8 @@ public class CollectorController {
 		
 		CollectorController collector = new CollectorController();
 //		collector.collectUrls("https://www.letras.mus.br");
-		collector.urlDao.saveInFile();
-		collector.lyricsDao.saveInFile();
+//		collector.urlDao.saveInFile();
+//		collector.lyricsDao.saveInFile();
 		collector.artistsDao.saveInFile();		
 	}
 	
