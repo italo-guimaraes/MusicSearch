@@ -6,9 +6,6 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayDeque;
 import java.util.Queue;
-import java.util.concurrent.Executor;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 import org.bson.Document;
 import org.bson.conversions.Bson;
@@ -38,15 +35,15 @@ public class UrlDao {
 	private Bson query;
 	
 	// Queue
-	private Object taskLock = new Object();
+	private Boolean isAsyncThreadAlive = false;
+	private Boolean isExecuting = false;
 	private Queue<Document> taskQueue = new ArrayDeque<Document>();
-	private ExecutorService executor = Executors.newSingleThreadExecutor();
 	private Document document = null;
 	
 	// File
 	private static PrintWriter gravarArquivoUrls;
 	private FileWriter arquivoUrls;
-	private File nomeArquivoUrls = new File("Urls.txt");;
+	private File nomeArquivoUrls = new File("Urls.txt");
 	
 	public void insert(String src, String title, String imageUrl) {	
 		
@@ -65,7 +62,7 @@ public class UrlDao {
 		
 //		query = Filters.eq("src", upsert.getString("src"));
 //		Database.getInstance().getUrls().updateOne(query, upsert, options);
-		executeAsync(upsert);
+		executeAsync(urlDao);
 	}
 	
 	public void print() {
@@ -114,32 +111,56 @@ public class UrlDao {
 	}
 	
 	private void executeAsync(Document document) {
-		synchronized (taskLock) {
+		synchronized (taskQueue) {
 			taskQueue.add(document);
 			scheduleNext();
 		}
 	}
 	
 	private void scheduleNext() {
-        synchronized(taskLock) {
-            document = taskQueue.poll();
-            if (document != null) {
-            	execute(document);
-            }
+        synchronized(isAsyncThreadAlive) {
+        	if (isAsyncThreadAlive) {
+        		return;
+        	}
+        	
+        	isAsyncThreadAlive = true;
         }
+        
+        new Thread() {       		
+    		public void run() {
+    			synchronized(isAsyncThreadAlive) {
+    				isAsyncThreadAlive = false;
+    			}
+    			execute();
+    		}
+    	}.start();
     }
 	
-	private void execute(Document document) {
-		synchronized (taskLock) {
-			try {
-				query = Filters.eq("src", document.getString("src"));
-				Database.getInstance().getUrls().updateOne(query, document, options);
-            } finally {
-                scheduleNext();
-            }
+	private void execute() {
+		synchronized (isExecuting) {
+			if (isExecuting) {
+				return;
+			}
+			
+			isExecuting = true;
 		}
-	}
-	
+		
+		do {
+			synchronized (taskQueue) {
+				document = taskQueue.poll();
+				if (document == null) {
+					break;
+				}
+			}
+			Document upsert = new Document();
+			upsert.append("$set", document);
+			query = Filters.eq("src", document.getString("src"));
+			Database.getInstance().getUrls().updateOne(query, upsert, options);
+			
+		} while (true);
+		
+		isExecuting = false;
+	}	
 }
 
 
