@@ -9,13 +9,21 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
+import dao.ArtistsDao;
+import dao.LyricsDao;
 import dao.UrlDao;
+import models.Artist;
+import models.Lyrics;
 
 public class CollectorController {
 	
 	private UrlDao urlDao = new UrlDao();
+	private LyricsDao lyricsDao = new LyricsDao();
+	private ArtistsDao artistsDao = new ArtistsDao();
 	
 	private long urlsAccessed = 0;
+	private long musicFound = 0;
+	private long artistFound = 0;
 		
 	public static void main(String[] args) {
 		
@@ -24,19 +32,24 @@ public class CollectorController {
 		CollectorController collector = new CollectorController();
 //		collector.collectUrls("https://www.letras.mus.br");
 		collector.urlDao.saveInFile();
-		
+		collector.lyricsDao.saveInFile();
+		collector.artistsDao.saveInFile();		
 	}
 	
 	private void collectUrls(String seed) {
 		searchUrl(seed);
+		sleep(10000);
 		String url = urlDao.getNextUrl();
 		int count = 0;
-		while (urlDao.getNextUrl() != null) {
+		while (url != null) {
 			
 			count++;
-			if (count > 100) {
+			if (count >= 100) {
 				count = 0;
-				System.out.println(" Urls accessed: " + urlsAccessed + "\t Urls in db " + urlDao.getTotalUrls());
+				System.out.println(" Urls accessed: " + urlsAccessed + 
+						"\t Urls in db: " + urlDao.getTotalUrls() + 
+						"\t Music in db: " + lyricsDao.getTotalLyrics() +
+						"\t Artists in db: " + artistsDao.getTotalArtists());
 			} else {
 				System.out.println(" Urls accessed: " + urlsAccessed);
 			}
@@ -51,6 +64,17 @@ public class CollectorController {
 		Element conteudo = conectaUrl(url);
 		if(conteudo != null){
 			getLinks(conteudo);
+			
+			try{
+				saveIfIsLyrics(conteudo, url);
+				saveIfIsArtist(conteudo, url);
+
+			}catch (Exception e) {
+				System.err.println("Erro ao pegar o conteudo da pagina " + url);
+				System.err.println(e);
+			}
+
+			
 		}
 	}
 	
@@ -128,6 +152,100 @@ public class CollectorController {
 					urlDao.insert(resolvedUrl, textLink, imageUrl);
 				}	
 			}
+		}
+	}
+	
+	private void saveIfIsLyrics(Element conteudo, String url) {
+		
+		Elements cntLetra = conteudo.getElementsByClass("cnt-letra");
+		Elements cntHeadTitle = conteudo.getElementsByClass("cnt-head_title");
+		
+		if (cntLetra != null && !cntLetra.isEmpty()
+				&& cntHeadTitle != null && !cntHeadTitle.isEmpty()
+				&& isLyrics(url)) {
+			
+			Lyrics lyrics = new Lyrics();
+			lyrics.setName(cntHeadTitle.first().select("h1").first().text());
+			lyrics.setArtistName(cntHeadTitle.first().select("h2").first().text());					
+			lyrics.setViews(getViewFromPage(conteudo));
+			lyrics.setLyrics(getLyricsFromPage(conteudo));
+			lyrics.setUrl(resolvedUrl(url));
+			
+			musicFound++;
+			lyricsDao.saveLyrics(lyrics);
+		}
+	}
+	
+	private boolean isLyrics(String url) {
+		if (url.contains(".html?")) {
+			return false;
+		}
+		return true;
+	}
+
+	private void saveIfIsArtist(Element conteudo, String url) {
+		
+		Elements cntArtista = conteudo.getElementsByClass("cnt-artista");
+		Elements cntHeadTitle = conteudo.getElementsByClass("cnt-head_title");
+		
+		if (cntArtista != null && !cntArtista.isEmpty()
+				&& cntHeadTitle != null && !cntHeadTitle.isEmpty() 
+				&& isUrlArtist(url)) {
+			
+			Artist artist = new Artist();
+			artist.setName(cntHeadTitle.first().select("h1").first().text());				
+			artist.setViews(getViewFromPage(conteudo));
+			artist.setImageUrl(getImageFromPage(conteudo));
+			artist.setUrl(resolvedUrl(url));
+			
+			artistFound++;
+			artistsDao.saveArtist(artist);		
+		}
+	}
+	
+	private boolean isUrlArtist(String url) {
+		String dados[] = url.split("/");
+		if (dados.length == 4) {
+			return true;
+		}		
+		return false;
+	}
+	
+	private String getLyricsFromPage(Element conteudo) {
+		String lyrics = conteudo.getElementsByClass("cnt-letra").first().text();
+		if (lyrics != null && !lyrics.isEmpty()) { 
+			return lyrics;
+		}
+		return null;
+	}
+
+	private Long getViewFromPage(Element conteudo) {
+		Element cntInfoExib = conteudo.getElementsByClass("cnt-info_exib").first();
+		if (cntInfoExib != null) {
+			String textView = cntInfoExib.select("b").first().text();
+			if (textView != null && !textView.isEmpty()) { 
+				textView = textView.replace(" ", "");
+				textView = textView.replace(".", "");
+				Long view = Long.parseLong(textView);
+				return view;
+			}
+		}
+		return 0L;
+	}
+	
+	private String getImageFromPage(Element conteudo) {
+		String imageUrl = conteudo.getElementsByClass("cnt-head_title").first().select("img").attr("src");
+		if (imageUrl != null && !imageUrl.isEmpty()) { 
+			return imageUrl;
+		}
+		return null;
+	}
+	
+	private void sleep(long time) {
+		try {
+			Thread.currentThread().sleep(time);
+		} catch (InterruptedException e) {
+			e.printStackTrace();
 		}
 	}
 
