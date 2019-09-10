@@ -8,6 +8,11 @@ import com.mongodb.client.MongoDatabase;
 
 public class Database {
 	
+	/*
+	 * Run Mongodb
+	 * sudo service mongod start
+	 */
+	
 	private static Database databaseInstance = null;
 	
 	private MongoClient mongoClient;
@@ -15,6 +20,8 @@ public class Database {
 	
 	// Tables
 	private MongoCollection<Document> urls;
+	private MongoCollection<Document> lyrics;
+	private MongoCollection<Document> artists;
 	
 	private Database() {
 		mongoClient = new MongoClient("localhost", 27017);
@@ -22,7 +29,7 @@ public class Database {
 		createTables();
 	}
 	
-	public static Database Database() {
+	public static Database getInstance() {
 		if (databaseInstance == null) {
 			databaseInstance = new Database();
 		}
@@ -30,7 +37,28 @@ public class Database {
 	}
 
 	private void createTables() {
+//		urls = database.getCollection("urls");
+//		urls.drop();
+//		lyrics = database.getCollection("lyrics");
+//		lyrics.drop();
+//		artists = database.getCollection("artists");
+//		artists.drop();
+		
 		urls = database.getCollection("urls");
+		lyrics = database.getCollection("lyrics");
+		artists = database.getCollection("artists");
+	}
+
+	public MongoCollection<Document> getUrls() {
+		return urls;
+	}
+	
+	public MongoCollection<Document> getLyrics() {
+		return lyrics;
+	}
+	
+	public MongoCollection<Document> getArtists() {
+		return artists;
 	}
 
 }
