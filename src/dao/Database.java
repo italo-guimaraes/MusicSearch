@@ -22,6 +22,7 @@ public class Database {
 	private MongoCollection<Document> urls;
 	private MongoCollection<Document> lyrics;
 	private MongoCollection<Document> artists;
+	private MongoCollection<Document> indexs;
 	
 	private Database() {
 		mongoClient = new MongoClient("localhost", 27017);
@@ -43,10 +44,13 @@ public class Database {
 //		lyrics.drop();
 //		artists = database.getCollection("artists");
 //		artists.drop();
+//		indexs = database.getCollection("indexs");
+//		indexs.drop();
 		
 		urls = database.getCollection("urls");
 		lyrics = database.getCollection("lyrics");
 		artists = database.getCollection("artists");
+		indexs = database.getCollection("indexs");
 	}
 
 	public MongoCollection<Document> getUrls() {
@@ -59,6 +63,10 @@ public class Database {
 	
 	public MongoCollection<Document> getArtists() {
 		return artists;
+	}
+	
+	public MongoCollection<Document> getIndexs() {
+		return indexs;
 	}
 
 }
