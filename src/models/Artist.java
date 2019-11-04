@@ -2,10 +2,19 @@ package models;
 
 public class Artist {
 	
+	private String id;
 	private String name;
 	private String imageUrl;
 	private Long views;
 	private String url;
+	
+	public String getId() {
+		return id;
+	}
+
+	public void setId(String id) {
+		this.id = id;
+	}
 	
 	public String getName() {
 		return name;
