@@ -5,12 +5,15 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Queue;
 
 import org.bson.Document;
 import org.bson.conversions.Bson;
+import org.bson.types.ObjectId;
 
 import com.mongodb.Block;
+import com.mongodb.client.FindIterable;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.UpdateOptions;
 
@@ -53,6 +56,12 @@ public class ArtistsDao {
 	
 	public long getTotalArtists() {
 		return Database.getInstance().getArtists().count();
+	}
+	
+	public Long getTotalArtistsIndexed() {		
+		Document queryDoc = new Document();
+		queryDoc.put("isIndexed", 1);
+		return Database.getInstance().getArtists().count(queryDoc);				
 	}
 	
 	public void saveInFile() {
@@ -120,7 +129,66 @@ public class ArtistsDao {
 		} while (true);	
 		
 		isExecuting = false;
-	}	
+	}
+	
+	public void setAllArtistToIndex() {
+		
+		Document queryDoc = new Document();
+		queryDoc.put("isIndexed", 1);
+		
+		FindIterable<Document> artistsDao = Database.getInstance().getArtists().find(queryDoc);
+		if (artistsDao == null ) {
+			return;
+		}
+		
+		for (Document artistDao : artistsDao) {			
+			String id = artistDao.get("_id").toString();	
+			artistDao.put("isIndexed", null);		
+			queryDoc.put("_id", new ObjectId(id));
+			Database.getInstance().getArtists().replaceOne(queryDoc, artistDao, new UpdateOptions().upsert(true));
+		}
+	}
+	
+	public Artist getNextArtist() {
+		
+		Document queryDoc = new Document();
+		queryDoc.put("isIndexed", null);
+		
+		Document artistDao = Database.getInstance().getArtists().find(queryDoc).limit(1).first();
+		if (artistDao == null ) {
+			return null;
+		}
+		artistDao.put("isIndexed", 1);
+		String name = artistDao.getString("name");
+		Long views = artistDao.getLong("views");
+		String id = artistDao.get("_id").toString();		
+		
+		queryDoc.put("_id", new ObjectId(id));
+		Database.getInstance().getArtists().replaceOne(queryDoc, artistDao, new UpdateOptions().upsert(true));
+		
+		Artist artist = new Artist();
+		artist.setId(id);
+		artist.setName(name);
+		artist.setViews(views);
+		
+		return artist;		
+	}
 
+	public Artist getArtistById(String idDocumento) {
+		
+		Document queryDoc = new Document();
+		queryDoc.put("_id", new ObjectId(idDocumento));
+		
+		Document artistDao = Database.getInstance().getArtists().find(queryDoc).first();
+		
+		Artist artist = new Artist();
+		artist.setId(artistDao.get("_id").toString());
+		artist.setName(artistDao.getString("name"));
+		artist.setViews(artistDao.getLong("views"));
+		artist.setUrl(artistDao.getString("url"));
+		artist.setImageUrl(artistDao.getString("imageUrl"));
+		
+		return artist;
+	}
 
 }
